@@ -4,9 +4,9 @@ const limine = @import("limine");
 pub const PAGE_SIZE = 4096; // In bytes
 
 var bitmap: [*]allowzero volatile bool = undefined;
-pub var total_page_count: u64 = 0; // The number of physical pages in the system
-pub var total_bitmap_byte_count: u64 = 0; // The number of bytes needed to represent all physical pages
-pub var total_bitmap_page_count: u64 = 0; // The number of physical pages needed to represent the bytes
+pub var total_page_count: u64 = undefined; // The number of physical pages in the system
+pub var total_bitmap_byte_count: u64 = undefined; // The number of bytes needed to represent all physical pages
+pub var total_bitmap_page_count: u64 = undefined; // The number of physical pages needed to represent the bytes
 
 pub fn init(hhdm_offset: u64, entries: []*limine.MemoryMapEntry) void {
     var total_entry_size: u64 = 0;
@@ -20,7 +20,7 @@ pub fn init(hhdm_offset: u64, entries: []*limine.MemoryMapEntry) void {
     var map_best_address: u64 = 0;
     var found_best_address = false;
     for (entries) |entry| {
-        if (total_bitmap_byte_count > entry.length) continue;
+        if (entry.kind != .usable or total_bitmap_byte_count > entry.length) continue;
 
         map_best_address = entry.base;
         found_best_address = true;
@@ -37,13 +37,20 @@ pub fn init(hhdm_offset: u64, entries: []*limine.MemoryMapEntry) void {
     // Mark all unusable pages as allocated
     for (0..total_page_count) |i| {
         const page_address = i * PAGE_SIZE;
+        var found_any_entry = false;
 
         for (entries) |entry| {
-            if (entry.kind != .usable and page_address >= entry.base and page_address <= entry.base + entry.length) {
-                bitmap[i] = true;
-                break; // We can safely break out of the loop here because a bitmap entry can only contain 1 page
+            if (page_address >= entry.base and page_address <= entry.base + entry.length) {
+                if (entry.kind != .usable) {
+                    bitmap[i] = true;
+                    break; // We can safely break out of the loop here because a bitmap entry can only contain 1 page
+                }
+                found_any_entry = true;
             }
         }
+
+        // There's a hole in the memory map, mark the page as allocated (it's most likely reserved)
+        if (!found_any_entry) bitmap[i] = true;
     }
 }
 

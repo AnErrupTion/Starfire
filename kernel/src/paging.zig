@@ -32,7 +32,10 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     initial_kernel_virtual_base = kernel_virtual_base;
 
     const pml4_table_address = try pmm.allocate(TABLE_SIZE);
-    const pml4_table: [*]u64 = @ptrFromInt(hhdm_offset + pml4_table_address);
+    const pml4_table: [*]volatile u64 = @ptrFromInt(hhdm_offset + pml4_table_address);
+
+    // Initialize the PML4 table with zeroes to make sure the present bit isn't set anywhere
+    for (0..TABLE_ENTRIES) |i| pml4_table[i] = 0;
 
     // We get the address of our linker-defined symbols because the values themselves will be whatever's defined in the
     // beginning (or the end) of the section, while the addresses will be what we actually defined in the linker script.
@@ -55,30 +58,38 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     }
 }
 
-// 0x000FFFFFFFFFF000 = Gets the physical address (masking off the flags)
-fn map(pml4_table: [*]u64, physical_address: u64, virtual_address: VirtualAddress, flags: u64) error{OutOfMemory}!void {
-    const pml4_entry = pml4_table[virtual_address.pml4_index];
-    var pdpr_entries: [*]u64 = @ptrFromInt(initial_hhdm_offset + (pml4_entry & 0x000FFFFFFFFFF000));
-    try ensureAllocated(pml4_entry, virtual_address.pml4_index, pml4_table, &pdpr_entries, flags);
-
-    const pdpr_entry = pdpr_entries[virtual_address.pdpr_index];
-    var pd_entries: [*]u64 = @ptrFromInt(initial_hhdm_offset + (pdpr_entry & 0x000FFFFFFFFFF000));
-    try ensureAllocated(pdpr_entry, virtual_address.pdpr_index, pdpr_entries, &pd_entries, flags);
-
-    const pd_entry = pd_entries[virtual_address.pd_index];
-    var pt_entries: [*]u64 = @ptrFromInt(initial_hhdm_offset + (pd_entry & 0x000FFFFFFFFFF000));
-    try ensureAllocated(pd_entry, virtual_address.pd_index, pd_entries, &pt_entries, flags);
+fn map(pml4_table: [*]volatile u64, physical_address: u64, virtual_address: VirtualAddress, flags: u64) error{OutOfMemory}!void {
+    const pdpr_entries = try getEntryOrAllocate(virtual_address.pml4_index, pml4_table, flags);
+    const pd_entries = try getEntryOrAllocate(virtual_address.pdpr_index, pdpr_entries, flags);
+    const pt_entries = try getEntryOrAllocate(virtual_address.pd_index, pd_entries, flags);
 
     pt_entries[virtual_address.pt_index] = physical_address | flags;
 }
 
-fn ensureAllocated(entry: u64, index: u64, table: [*]u64, lower_table: *[*]u64, flags: u64) error{OutOfMemory}!void {
+fn getEntryOrAllocate(index: u64, table: [*]volatile u64, flags: u64) error{OutOfMemory}![*]volatile u64 {
+    const entry = table[index];
+
     if (entry & 1 == 0) {
         // Present flag is missing, so we allocate a new entry
-        const entry_address = try pmm.allocate(TABLE_SIZE);
-        table[index] = entry_address | flags;
-        lower_table.* = @ptrFromInt(initial_hhdm_offset + entry_address);
+        const new_entry_address = try pmm.allocate(TABLE_SIZE);
+        const new_entry: [*]volatile u64 = @ptrFromInt(initial_hhdm_offset + new_entry_address);
+
+        // Initialize the new entry with zeroes to make sure the present bit isn't set anywhere
+        for (0..TABLE_ENTRIES) |i| new_entry[i] = 0;
+
+        table[index] = new_entry_address | flags;
+
+        return new_entry;
     }
+
+    // if ((@intFromPtr(table) - initial_hhdm_offset) == 0x103000) {
+    //     var buffer: [64]u8 = undefined;
+    //     const slice = @import("std").fmt.bufPrint(&buffer, "{X} addr {X}\n", .{ entry, @intFromPtr(table) - initial_hhdm_offset }) catch unreachable;
+    //     serial.writeString(serial.COM1, slice);
+    // }
+
+    // 0x000FFFFFFFFFF000 = Gets the physical address (masking off the flags)
+    return @ptrFromInt(initial_hhdm_offset + (entry & 0x000FFFFFFFFFF000));
 }
 
 inline fn getAlignedKernelAddress(virtual_address: u64) u64 {

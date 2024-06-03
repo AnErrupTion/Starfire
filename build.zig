@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
 
     const optimize = b.standardOptimizeOption(.{});
     const limine = b.dependency("limine", .{});
-    const kernel = b.addExecutable(.{
+    const exe = b.addExecutable(.{
         .name = "Starfire",
         .root_source_file = b.path("src/main.zig"),
         .target = b.resolveTargetQuery(target),
@@ -27,14 +27,14 @@ pub fn build(b: *std.Build) void {
         .pic = true,
     });
 
-    kernel.root_module.addImport("limine", limine.module("limine"));
-    kernel.setLinkerScriptPath(b.path("linker.ld"));
-    kernel.addAssemblyFile(b.path("src/asm/idt.S"));
+    exe.root_module.addImport("limine", limine.module("limine"));
+    exe.setLinkerScriptPath(b.path("linker.ld"));
+    exe.addAssemblyFile(b.path("src/asm/idt.S"));
 
     // Disable LTO. This prevents issues with limine requests
-    kernel.want_lto = false;
+    exe.want_lto = false;
 
-    b.installArtifact(kernel);
+    b.installArtifact(exe);
 
     const make_iso_step = b.step("make-iso", "Create a bootable ISO image");
     make_iso_step.makeFn = makeIso;

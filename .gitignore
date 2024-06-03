@@ -1,6 +1,6 @@
 /.idea
-/kernel/.zig-cache
-/kernel/zig-cache
-/kernel/zig-out
-/kernel/iso-root
+/.zig-cache
+/zig-cache
+/zig-out
+/iso_root
 *.iso

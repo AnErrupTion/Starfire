@@ -1,3 +1,4 @@
+const std = @import("std");
 const port = @import("port.zig");
 
 pub const COM1: u16 = 0x3F8;
@@ -65,4 +66,10 @@ pub fn writeChar(com_port: u16, char: u8) void {
 
 pub fn writeString(com_port: u16, string: []const u8) void {
     for (string) |char| writeChar(com_port, char);
+}
+
+pub fn debugPrint(com_port: u16, comptime format: []const u8, args: anytype) !void {
+    var buffer: [1024]u8 = undefined;
+    const slice = try std.fmt.bufPrint(&buffer, format, args);
+    writeString(com_port, slice);
 }

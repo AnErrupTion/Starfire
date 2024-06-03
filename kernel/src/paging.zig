@@ -35,7 +35,7 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     const pml4_table: [*]volatile u64 = @ptrFromInt(hhdm_offset + pml4_table_address);
 
     // Initialize the PML4 table with zeroes to make sure the present bit isn't set anywhere
-    for (0..TABLE_ENTRIES) |i| pml4_table[i] = 0;
+    @memset(pml4_table[0..TABLE_ENTRIES], 0);
 
     // We get the address of our linker-defined symbols because the values themselves will be whatever's defined in the
     // beginning (or the end) of the section, while the addresses will be what we actually defined in the linker script.
@@ -59,6 +59,8 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
 }
 
 fn map(pml4_table: [*]volatile u64, physical_address: u64, virtual_address: VirtualAddress, flags: u64) error{OutOfMemory}!void {
+    // serial.debugPrint(serial.COM1, "{X} {any}\n", .{ physical_address, physical_address >= 4 * 1024 * 1024 * 1024 }) catch unreachable;
+    //0x30000000
     const pdpr_entries = try getEntryOrAllocate(virtual_address.pml4_index, pml4_table, flags);
     const pd_entries = try getEntryOrAllocate(virtual_address.pdpr_index, pdpr_entries, flags);
     const pt_entries = try getEntryOrAllocate(virtual_address.pd_index, pd_entries, flags);
@@ -75,21 +77,16 @@ fn getEntryOrAllocate(index: u64, table: [*]volatile u64, flags: u64) error{OutO
         const new_entry: [*]volatile u64 = @ptrFromInt(initial_hhdm_offset + new_entry_address);
 
         // Initialize the new entry with zeroes to make sure the present bit isn't set anywhere
-        for (0..TABLE_ENTRIES) |i| new_entry[i] = 0;
+        @memset(new_entry[0..TABLE_ENTRIES], 0);
 
         table[index] = new_entry_address | flags;
 
         return new_entry;
     }
 
-    // if ((@intFromPtr(table) - initial_hhdm_offset) == 0x103000) {
-    //     var buffer: [64]u8 = undefined;
-    //     const slice = @import("std").fmt.bufPrint(&buffer, "{X} addr {X}\n", .{ entry, @intFromPtr(table) - initial_hhdm_offset }) catch unreachable;
-    //     serial.writeString(serial.COM1, slice);
-    // }
-
     // 0x000FFFFFFFFFF000 = Gets the physical address (masking off the flags)
-    return @ptrFromInt(initial_hhdm_offset + (entry & 0x000FFFFFFFFFF000));
+    // huh??!! that can't possibly be the solution, right????
+    return @ptrFromInt(initial_hhdm_offset + (entry & 0xFFFFFFFFFFFFFFF0));
 }
 
 inline fn getAlignedKernelAddress(virtual_address: u64) u64 {

@@ -62,17 +62,17 @@ pub fn allocate(size: u64) error{OutOfMemory}!u64 {
     var satisfied_pages: u64 = 0;
     for (0..total_page_count) |i| {
         if (bitmap[i]) {
-            for (0..satisfied_pages) |j| bitmap[i - 1 - j] = false;
+            // for (0..satisfied_pages) |j| bitmap[i - 1 - j] = false;
             satisfied_pages = 0;
             continue;
         }
 
-        bitmap[i] = true;
+        // bitmap[i] = true;
         satisfied_pages += 1;
 
         if (satisfied_pages == required_page_count) {
-            // We add 1 to the index because this check happens at the last allocated page
-            return (i - required_page_count + 1) * PAGE_SIZE;
+            for (0..required_page_count) |j| bitmap[i - j] = true;
+            return (i - required_page_count + 1) * PAGE_SIZE; // We add 1 to the index because this check happens at the last allocated page
         }
     }
 

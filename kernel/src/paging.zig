@@ -44,23 +44,19 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     // Kernel Address Feature to get the physical address of each of those sections.
 
     serial.writeString(serial.COM1, "Paging: Mapping kernel\n");
-    try map(pml4_table, getAlignedKernelAddress(@intFromPtr(&TEXT_START)), @bitCast(@intFromPtr(&TEXT_START)), 3);
-    try map(pml4_table, getAlignedKernelAddress(@intFromPtr(&TEXT_END)), @bitCast(@intFromPtr(&TEXT_END)), 3);
-    try map(pml4_table, getAlignedKernelAddress(@intFromPtr(&RODATA_START)), @bitCast(@intFromPtr(&RODATA_START)), 3);
-    try map(pml4_table, getAlignedKernelAddress(@intFromPtr(&RODATA_END)), @bitCast(@intFromPtr(&RODATA_END)), 3);
-    try map(pml4_table, getAlignedKernelAddress(@intFromPtr(&DATA_START)), @bitCast(@intFromPtr(&DATA_START)), 3);
-    try map(pml4_table, getAlignedKernelAddress(@intFromPtr(&DATA_END)), @bitCast(@intFromPtr(&DATA_END)), 3);
+    for (@intFromPtr(&TEXT_START)..@intFromPtr(&TEXT_END)) |i| try map(pml4_table, getAlignedKernelAddress(i), @bitCast(i), 3);
+    for (@intFromPtr(&RODATA_START)..@intFromPtr(&RODATA_END)) |i| try map(pml4_table, getAlignedKernelAddress(i), @bitCast(i), 3);
+    for (@intFromPtr(&DATA_START)..@intFromPtr(&DATA_END)) |i| try map(pml4_table, getAlignedKernelAddress(i), @bitCast(i), 3);
 
+    // TODO: Check if system has less than 4 GiB of RAM
     serial.writeString(serial.COM1, "Paging: Mapping first 4 GiB\n");
     var address: u64 = 0;
-    while (address < 4 * 1024 * 1024 * 1024) : (address += pmm.PAGE_SIZE) {
+    while (address < 0x100000000) : (address += pmm.PAGE_SIZE) {
         try map(pml4_table, address, @bitCast(hhdm_offset + address), 3);
     }
 }
 
 fn map(pml4_table: [*]volatile u64, physical_address: u64, virtual_address: VirtualAddress, flags: u64) error{OutOfMemory}!void {
-    // serial.debugPrint(serial.COM1, "{X} {any}\n", .{ physical_address, physical_address >= 4 * 1024 * 1024 * 1024 }) catch unreachable;
-    //0x30000000
     const pdpr_entries = try getEntryOrAllocate(virtual_address.pml4_index, pml4_table, flags);
     const pd_entries = try getEntryOrAllocate(virtual_address.pdpr_index, pdpr_entries, flags);
     const pt_entries = try getEntryOrAllocate(virtual_address.pd_index, pd_entries, flags);
@@ -85,8 +81,7 @@ fn getEntryOrAllocate(index: u64, table: [*]volatile u64, flags: u64) error{OutO
     }
 
     // 0x000FFFFFFFFFF000 = Gets the physical address (masking off the flags)
-    // huh??!! that can't possibly be the solution, right????
-    return @ptrFromInt(initial_hhdm_offset + (entry & 0xFFFFFFFFFFFFFFF0));
+    return @ptrFromInt(initial_hhdm_offset + (entry & 0x000FFFFFFFFFF000));
 }
 
 inline fn getAlignedKernelAddress(virtual_address: u64) u64 {

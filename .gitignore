@@ -1,5 +1,6 @@
 /.idea
-/limine
-/ovmf
+/kernel/.zig-cache
+/kernel/zig-cache
+/kernel/zig-out
+/kernel/iso-root
 *.iso
-*.hdd

@@ -1,5 +1,5 @@
 .{
-    .name = "limine-zig-template",
+    .name = "Starfire",
     .version = "1.0.0",
     .paths = .{"."},
     .dependencies = .{

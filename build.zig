@@ -119,7 +119,7 @@ fn runQemu(self: *std.Build.Step, progress: std.Progress.Node) !void {
         "-serial",
         "tcp:127.0.0.1:4444,server=on,wait=on",
         "-m",
-        "5G",
+        "2G",
         "-cdrom",
         "Starfire.iso",
     };

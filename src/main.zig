@@ -5,6 +5,7 @@ const idt = @import("idt.zig");
 const apic = @import("apic.zig");
 const pmm = @import("pmm.zig");
 const paging = @import("paging.zig");
+const vmm = @import("vmm.zig");
 
 pub export var base_revision = limine.BaseRevision{ .revision = 2 };
 pub export var hhdm_request = limine.HhdmRequest{};
@@ -28,8 +29,6 @@ pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, siz:
 }
 
 export fn _start() callconv(.C) noreturn {
-    asm volatile ("cli");
-
     if (!base_revision.is_supported()) std.debug.panic("Limine: Base revision not supported!", .{});
     if (hhdm_request.response == null) std.debug.panic("Limine: HHDM not found!", .{});
     if (memory_map_request.response == null) std.debug.panic("Limine: Memory map not found!", .{});
@@ -55,6 +54,9 @@ export fn _start() callconv(.C) noreturn {
 
     paging.init(hhdm_offset, kernel_address_response.physical_base, kernel_address_response.virtual_base) catch std.debug.panic("Paging: Out of memory", .{});
     serial.writeString(serial.COM1, "Paging: Initialized\n");
+
+    vmm.init(hhdm_offset);
+    serial.writeString(serial.COM1, "VMM: Initialized\n");
 
     halt();
 }

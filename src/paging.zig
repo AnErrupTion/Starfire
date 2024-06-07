@@ -1,5 +1,4 @@
 const pmm = @import("pmm.zig");
-const serial = @import("serial.zig");
 
 const TABLE_ENTRIES: u64 = 512;
 const ENTRY_SIZE: u64 = 8; // In bytes
@@ -48,7 +47,6 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     // Similarly, those addresses will be the virtual addresses to where the sections will be mapped. We then use Limine's
     // Kernel Address Feature to get the physical address of each of those sections.
 
-    serial.writeString(serial.COM1, "Paging: Mapping kernel\n");
     for (@intFromPtr(&TEXT_START)..@intFromPtr(&TEXT_END)) |i| try map(pml4_table, getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT | READ_WRITE_BIT);
     for (@intFromPtr(&RODATA_START)..@intFromPtr(&RODATA_END)) |i| try map(pml4_table, getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT);
     for (@intFromPtr(&DATA_START)..@intFromPtr(&DATA_END)) |i| try map(pml4_table, getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT | READ_WRITE_BIT);
@@ -56,13 +54,16 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     // The system may have less than 4 GiB of memory, so we account for that
     const max_address = @min(pmm.total_entry_size, MAX_4GIB_ADDRESS);
 
-    serial.writeString(serial.COM1, "Paging: Mapping full memory or first 4 GiB\n");
     var address: u64 = 0;
     while (address < max_address) : (address += pmm.PAGE_SIZE) {
         try map(pml4_table, address, @bitCast(hhdm_offset + address), PRESENT_BIT | READ_WRITE_BIT);
     }
 
-    // TODO: Actually enable paging (and thus check if it works)
+    // Enable paging
+    asm volatile ("mov %cr3, %[value]"
+        :
+        : [value] "{rax}" (pml4_table_address),
+    );
 }
 
 fn map(pml4_table: [*]volatile u64, physical_address: u64, virtual_address: VirtualAddress, flags: u64) error{OutOfMemory}!void {

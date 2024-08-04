@@ -1,6 +1,7 @@
 const limine = @import("limine");
 const std = @import("std");
-const serial = @import("serial.zig");
+const Serial = @import("x86/Serial.zig");
+const Terminal = @import("Terminal.zig");
 const idt = @import("x86/idt.zig");
 const apic = @import("x86/apic.zig");
 const pmm = @import("pmm.zig");
@@ -16,14 +17,16 @@ inline fn halt() noreturn {
     while (true) asm volatile ("hlt");
 }
 
+var terminal: Terminal = undefined;
+
 pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, siz: ?usize) noreturn {
     _ = error_return_trace;
     _ = siz;
 
     @setCold(true);
 
-    serial.writeString(serial.COM1, "Panic: ");
-    serial.writeString(serial.COM1, msg);
+    terminal.writeString("Panic: ");
+    terminal.writeString(msg);
 
     halt();
 }
@@ -38,25 +41,27 @@ export fn _start() callconv(.C) noreturn {
     const memory_map_entries = memory_map_request.response.?.entries();
     const kernel_address_response = kernel_address_request.response.?;
 
-    serial.init(serial.COM1, 9600);
-    serial.writeString(serial.COM1, "Serial: Initialized\n");
+    var serial = Serial.init(Serial.COM1, 9600);
+
+    terminal = serial.terminal();
+    terminal.writeString("Terminal: Initialized\n");
 
     idt.init();
-    serial.writeString(serial.COM1, "IDT: Initialized\n");
+    terminal.writeString("IDT: Initialized\n");
 
     apic.init(hhdm_offset);
-    serial.writeString(serial.COM1, "APIC: Initialized\n");
+    terminal.writeString("APIC: Initialized\n");
 
     asm volatile ("sti");
 
     pmm.init(hhdm_offset, memory_map_entries);
-    serial.writeString(serial.COM1, "PMM: Initialized\n");
+    terminal.writeString("PMM: Initialized\n");
 
     paging.init(hhdm_offset, kernel_address_response.physical_base, kernel_address_response.virtual_base) catch std.debug.panic("Paging: Out of memory", .{});
-    serial.writeString(serial.COM1, "Paging: Initialized\n");
+    terminal.writeString("Paging: Initialized\n");
 
     vmm.init(hhdm_offset);
-    serial.writeString(serial.COM1, "VMM: Initialized\n");
+    terminal.writeString("VMM: Initialized\n");
 
     halt();
 }

@@ -1,5 +1,5 @@
 const std = @import("std");
-const port = @import("port.zig");
+const port = @import("x86/port.zig");
 
 pub const COM1: u16 = 0x3F8;
 pub const COM2: u16 = 0x2F8;

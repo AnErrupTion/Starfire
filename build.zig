@@ -29,7 +29,7 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("limine", limine.module("limine"));
     exe.setLinkerScriptPath(b.path("linker.ld"));
-    exe.addAssemblyFile(b.path("src/asm/idt.S"));
+    exe.addAssemblyFile(b.path("src/x86/asm/idt.S"));
 
     // Disable LTO. This prevents issues with limine requests
     exe.want_lto = false;

@@ -15,7 +15,7 @@ const VirtualAddress = packed struct {
     pdpr_index: u9,
     pd_index: u9,
     pt_index: u9,
-    offset: u12,
+    offset: u12, // For debugging
 };
 
 // Those are defined in the linker script

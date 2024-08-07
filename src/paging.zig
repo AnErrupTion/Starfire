@@ -52,7 +52,7 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     for (@intFromPtr(&DATA_START)..@intFromPtr(&DATA_END)) |i| try map(pml4_table, getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT | READ_WRITE_BIT);
 
     // The system may have less than 4 GiB of memory, so we account for that
-    const max_address = @min(pmm.total_entry_size, MAX_4GIB_ADDRESS);
+    const max_address = @min(pmm.total_byte_count, MAX_4GIB_ADDRESS);
 
     var address: u64 = 0;
     while (address < max_address) : (address += pmm.PAGE_SIZE) {

@@ -7,6 +7,7 @@ const apic = @import("x86/apic.zig");
 const pmm = @import("pmm.zig");
 const paging = @import("paging.zig");
 const vmm = @import("vmm.zig");
+const Heap = @import("Heap.zig");
 
 pub export var base_revision = limine.BaseRevision{ .revision = 2 };
 pub export var hhdm_request = limine.HhdmRequest{};
@@ -18,6 +19,7 @@ inline fn halt() noreturn {
 }
 
 var terminal: Terminal = undefined;
+var heap: Heap = undefined;
 
 pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, siz: ?usize) noreturn {
     _ = error_return_trace;
@@ -62,6 +64,29 @@ export fn _start() callconv(.C) noreturn {
 
     vmm.init(hhdm_offset);
     terminal.writeString("VMM: Initialized\n");
+
+    heap = Heap.init(8192) catch std.debug.panic("Heap: Out of memory", .{});
+    terminal.writeString("Heap: Initialized\n");
+
+    {
+        const address = heap.allocate(512) catch std.debug.panic("Heap address 1: Out of memory", .{});
+        defer heap.free(address);
+
+        const address2 = heap.allocate(128) catch std.debug.panic("Heap address 2: Out of memory", .{});
+        defer heap.free(address2);
+
+        {
+            var buffer: [*]u8 = @ptrFromInt(address);
+            const slice = std.fmt.bufPrint(buffer[0..512], "Test 1: Hello, {s}! Size: {d}\n", .{ "World", 128 }) catch "Error";
+            terminal.writeString(slice);
+        }
+
+        {
+            var buffer: [*]u8 = @ptrFromInt(address2);
+            const slice = std.fmt.bufPrint(buffer[0..128], "Test 2: Hello, {s}! Size: {d}\n", .{ "World", 128 }) catch "Error";
+            terminal.writeString(slice);
+        }
+    }
 
     halt();
 }

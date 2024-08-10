@@ -47,7 +47,7 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     // Similarly, those addresses will be the virtual addresses to where the sections will be mapped. We then use Limine's
     // Kernel Address Feature to get the physical address of each of those sections.
 
-    for (@intFromPtr(&TEXT_START)..@intFromPtr(&TEXT_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT | READ_WRITE_BIT);
+    for (@intFromPtr(&TEXT_START)..@intFromPtr(&TEXT_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT);
     for (@intFromPtr(&RODATA_START)..@intFromPtr(&RODATA_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT);
     for (@intFromPtr(&DATA_START)..@intFromPtr(&DATA_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT | READ_WRITE_BIT);
 

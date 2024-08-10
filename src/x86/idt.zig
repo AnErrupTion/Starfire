@@ -55,8 +55,11 @@ const InterruptStackFrame = packed struct {
     error_code: u64,
 };
 
+var idt: [256]GateDescriptor = undefined;
+var idtr: IdtRegister = undefined;
+
 pub fn init() void {
-    const idt = [256]GateDescriptor{
+    idt = [256]GateDescriptor{
         createInterruptHandlerEntry(@intFromPtr(&irq0)),
         createInterruptHandlerEntry(@intFromPtr(&irq1)),
         createInterruptHandlerEntry(@intFromPtr(&irq2)),
@@ -315,11 +318,15 @@ pub fn init() void {
         createInterruptHandlerEntry(@intFromPtr(&irq255)),
     };
 
-    const idtr = IdtRegister{
+    idtr = IdtRegister{
         .size = @sizeOf(GateDescriptor) * 256 - 1,
         .offset = @intFromPtr(&idt),
     };
 
+    bootstrapCore();
+}
+
+pub fn bootstrapCore() void {
     asm volatile ("lidt (%[value])"
         :
         : [value] "{rax}" (&idtr),
@@ -388,6 +395,9 @@ export fn interruptHandler(stack_frame: *InterruptStackFrame) callconv(.C) void 
         30 => std.debug.panic("IRQ 30: Security Exception: {X}", .{stack_frame.error_code}),
         31 => std.debug.panic("IRQ 31: Reserved", .{}),
         else => {
+            if (stack_frame.irq == 0x80) {
+                @import("../main.zig").terminal.writeString("received irq 0x80\n");
+            }
             apic.sendEoi();
         },
     }

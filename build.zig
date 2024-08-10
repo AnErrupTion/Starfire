@@ -114,6 +114,8 @@ fn runQemu(self: *std.Build.Step, progress: std.Progress.Node) !void {
         "q35",
         "-cpu",
         "host",
+        "-smp",
+        "dies=1,sockets=1,cores=2,threads=1",
         "-display",
         "none",
         "-serial",

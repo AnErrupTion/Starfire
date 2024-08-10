@@ -30,6 +30,7 @@ var initial_hhdm_offset: u64 = undefined;
 var initial_kernel_physical_base: u64 = undefined;
 var initial_kernel_virtual_base: u64 = undefined;
 
+var pml4_table_address: usize = undefined;
 var pml4_table: [*]volatile u64 = undefined;
 
 pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u64) error{OutOfMemory}!void {
@@ -37,7 +38,7 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     initial_kernel_physical_base = kernel_physical_base;
     initial_kernel_virtual_base = kernel_virtual_base;
 
-    const pml4_table_address = try pmm.allocate(TABLE_SIZE);
+    pml4_table_address = try pmm.allocate(TABLE_SIZE);
     pml4_table = @ptrFromInt(hhdm_offset + pml4_table_address);
 
     // Initialize the PML4 table with zeroes to make sure the present bit isn't set anywhere
@@ -55,6 +56,10 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     for (@intFromPtr(&BSS_START)..@intFromPtr(&BSS_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT | READ_WRITE_BIT);
 
     // Enable paging
+    bootstrapCore();
+}
+
+pub fn bootstrapCore() void {
     asm volatile ("mov %cr3, %[value]"
         :
         : [value] "{rax}" (pml4_table_address),

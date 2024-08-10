@@ -58,7 +58,7 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     );
 }
 
-fn map(physical_address: u64, virtual_address: VirtualAddress, flags: u64) error{OutOfMemory}!void {
+pub fn map(physical_address: u64, virtual_address: VirtualAddress, flags: u64) error{OutOfMemory}!void {
     const pdpr_entries = try getEntryOrAllocate(virtual_address.pml4_index, pml4_table, flags);
     const pd_entries = try getEntryOrAllocate(virtual_address.pdpr_index, pdpr_entries, flags);
     const pt_entries = try getEntryOrAllocate(virtual_address.pd_index, pd_entries, flags);

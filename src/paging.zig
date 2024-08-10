@@ -23,6 +23,8 @@ extern const RODATA_START: u64;
 extern const RODATA_END: u64;
 extern const DATA_START: u64;
 extern const DATA_END: u64;
+extern const BSS_START: u64;
+extern const BSS_END: u64;
 
 var initial_hhdm_offset: u64 = undefined;
 var initial_kernel_physical_base: u64 = undefined;
@@ -50,6 +52,7 @@ pub fn init(hhdm_offset: u64, kernel_physical_base: u64, kernel_virtual_base: u6
     for (@intFromPtr(&TEXT_START)..@intFromPtr(&TEXT_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT);
     for (@intFromPtr(&RODATA_START)..@intFromPtr(&RODATA_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT);
     for (@intFromPtr(&DATA_START)..@intFromPtr(&DATA_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT | READ_WRITE_BIT);
+    for (@intFromPtr(&BSS_START)..@intFromPtr(&BSS_END)) |i| try map(getAlignedKernelAddress(i), @bitCast(i), PRESENT_BIT | READ_WRITE_BIT);
 
     // Enable paging
     asm volatile ("mov %cr3, %[value]"

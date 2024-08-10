@@ -68,25 +68,5 @@ export fn _start() callconv(.C) noreturn {
     heap = Heap.init(8192) catch std.debug.panic("Heap: Out of memory", .{});
     terminal.writeString("Heap: Initialized\n");
 
-    {
-        const address = heap.allocate(512) catch std.debug.panic("Heap address 1: Out of memory", .{});
-        defer heap.free(address);
-
-        const address2 = heap.allocate(128) catch std.debug.panic("Heap address 2: Out of memory", .{});
-        defer heap.free(address2);
-
-        {
-            var buffer: [*]u8 = @ptrFromInt(address);
-            const slice = std.fmt.bufPrint(buffer[0..512], "Test 1: Hello, {s}! Size: {d}\n", .{ "World", 128 }) catch "Error";
-            terminal.writeString(slice);
-        }
-
-        {
-            var buffer: [*]u8 = @ptrFromInt(address2);
-            const slice = std.fmt.bufPrint(buffer[0..128], "Test 2: Hello, {s}! Size: {d}\n", .{ "World", 128 }) catch "Error";
-            terminal.writeString(slice);
-        }
-    }
-
     halt();
 }

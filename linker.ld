@@ -68,10 +68,12 @@ SECTIONS
     /* unnecessary zeros will be written to the binary. */
     /* If you need, for example, .init_array and .fini_array, those should be placed */
     /* above this. */
+    BSS_START = .;
     .bss : {
         *(.bss .bss.*)
         *(COMMON)
     } :data
+    BSS_END = .;
 
     /* Discard .note.* and .eh_frame since they may cause issues on some hosts. */
     /* Also discard the program interpreter section since we do not need one. This is */
